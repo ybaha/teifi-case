@@ -50,7 +50,13 @@ export const shopifyClient = new GraphQLClient(
 export const queries = {
   getProducts: `
     query getProducts($first: Int, $last: Int, $after: String, $before: String) {
-      products(first: $first, last: $last, after: $after, before: $before) {
+      products(
+        first: $first, 
+        last: $last, 
+        after: $after, 
+        before: $before, 
+        sortKey: CREATED_AT, 
+      ) {
         pageInfo {
           hasNextPage
           hasPreviousPage
@@ -101,6 +107,18 @@ export const queries = {
       }
     }
   `,
+
+  deleteProduct: `
+    mutation deleteProduct($input: ProductDeleteInput!) {
+      productDelete(input: $input) {
+        deletedProductId
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `,
 };
 
 export async function getProducts(
@@ -132,5 +150,11 @@ export async function updateVariant(id: string, sku: string) {
       id,
       barcode: sku,
     },
+  });
+}
+
+export async function deleteProduct(id: string) {
+  return shopifyClient.request(queries.deleteProduct, {
+    input: { id },
   });
 }

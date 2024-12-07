@@ -1,3 +1,4 @@
+import { cssBundleHref } from "@remix-run/css-bundle";
 import type { LinksFunction } from "@remix-run/node";
 import {
   Links,
@@ -7,13 +8,14 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
-import "@shopify/polaris/build/esm/styles.css";
 import { AppProvider } from "@shopify/polaris";
+import "@shopify/polaris/build/esm/styles.css";
 
 export const links: LinksFunction = () => [
+  ...(cssBundleHref ? [{ rel: "stylesheet", href: cssBundleHref }] : []),
   {
     rel: "stylesheet",
-    href: "@shopify/polaris/build/esm/styles.css",
+    href: "https://unpkg.com/@shopify/polaris@12.0.0/build/esm/styles.css",
   },
 ];
 
