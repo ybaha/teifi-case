@@ -19,6 +19,13 @@ export const links: LinksFunction = () => [
   },
 ];
 
+export const meta = () => {
+  return [
+    { title: "Shopify Products Manager" },
+    { name: "description", content: "Manage your Shopify products" },
+  ];
+};
+
 export default function App() {
   return (
     <html lang="en">
