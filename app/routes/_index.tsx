@@ -1,4 +1,4 @@
-import { type LoaderFunction } from "@remix-run/node";
+import { type LoaderFunction, type ActionFunction } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
 import {
   Page,
@@ -14,8 +14,14 @@ import {
   Loading,
   Frame,
 } from "@shopify/polaris";
-import { useState } from "react";
-import { getProducts } from "~/utils/shopify.server";
+import { FormEvent, useState } from "react";
+import { FormStatus, FormValues } from "~/types";
+import { PAGE_SIZE } from "~/utils/constants";
+import {
+  getProducts,
+  createProduct,
+  updateVariant,
+} from "~/utils/shopify.server";
 
 interface LoaderData {
   products: Array<{
@@ -40,7 +46,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   const cursor = url.searchParams.get("cursor") || undefined;
   const direction = url.searchParams.get("direction") || "next";
 
-  const data = await getProducts(5, cursor, direction === "previous");
+  const data = await getProducts(PAGE_SIZE, cursor, direction === "previous");
 
   return Response.json({
     products: data.products.nodes,
@@ -51,12 +57,28 @@ export const loader: LoaderFunction = async ({ request }) => {
   });
 };
 
-type FormStatus = "ACTIVE" | "DRAFT" | "ARCHIVED";
+export const action: ActionFunction = async ({ request }) => {
+  try {
+    const formData = await request.formData();
+    const title = formData.get("title") as string;
+    const status = formData.get("status") as string;
+    const sku = formData.get("sku") as string;
 
-type FormValues = {
-  title: string;
-  status: FormStatus;
-  sku: string;
+    const data = await createProduct({ title, status });
+
+    // i couldn't find a way to add a sku to the product when creating it
+    // so i'm updating the first variant with the sku
+    if (sku && data.productCreate.product.variants.nodes[0]) {
+      await updateVariant(data.productCreate.product.variants.nodes[0].id, sku);
+    }
+
+    return Response.json({ success: true });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    return new Response(errorMessage, { status: 400 });
+  }
 };
 
 export default function Index() {
@@ -64,13 +86,13 @@ export default function Index() {
     useLoaderData<LoaderData>();
 
   const navigation = useNavigation();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formValues, setFormValues] = useState<FormValues>({
     title: "",
     status: "ACTIVE",
     sku: "",
   });
-
   const submit = useSubmit();
 
   const isLoading = navigation.state !== "idle";
@@ -80,6 +102,20 @@ export default function Index() {
     product.status,
     product.variants.nodes[0]?.barcode || "",
   ]);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const formData = new FormData();
+    formData.append("title", formValues.title);
+    formData.append("status", formValues.status);
+    formData.append("sku", formValues.sku);
+
+    submit(formData, { method: "post" });
+
+    setIsModalOpen(false);
+    setFormValues({ title: "", status: "ACTIVE", sku: "" }); // Reset form
+  };
 
   return (
     <Frame>
@@ -135,7 +171,7 @@ export default function Index() {
           title="Add new product"
         >
           <Modal.Section>
-            <Form onSubmit={() => {}}>
+            <Form onSubmit={handleSubmit}>
               <FormLayout>
                 <TextField
                   label="Title"

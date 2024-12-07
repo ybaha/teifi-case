@@ -25,6 +25,19 @@ interface ProductsResponse {
   };
 }
 
+interface ProductCreateResponse {
+  productCreate: {
+    product: {
+      id: string;
+      variants: {
+        nodes: Array<{
+          id: string;
+        }>;
+      };
+    };
+  };
+}
+
 export const shopifyClient = new GraphQLClient(
   `https://${SHOPIFY_DOMAIN}/admin/api/2024-07/graphql.json`,
   {
@@ -58,6 +71,36 @@ export const queries = {
       }
     }
   `,
+
+  createProduct: `
+    mutation createProduct($input: ProductInput!) {
+      productCreate(input: $input) {
+        product {
+          id
+          variants(first: 1) {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    }
+  `,
+
+  updateVariant: `
+    mutation updateVariant($input: ProductVariantInput!) {
+      productVariantUpdate(input: $input) {
+        productVariant {
+          id
+          barcode
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `,
 };
 
 export async function getProducts(
@@ -70,5 +113,24 @@ export async function getProducts(
     last: reverse ? limit : undefined,
     after: !reverse ? cursor : undefined,
     before: reverse ? cursor : undefined,
+  });
+}
+
+export async function createProduct(input: {
+  title: string;
+  status: string;
+  sku?: string;
+}) {
+  return shopifyClient.request<ProductCreateResponse>(queries.createProduct, {
+    input,
+  });
+}
+
+export async function updateVariant(id: string, sku: string) {
+  return shopifyClient.request(queries.updateVariant, {
+    input: {
+      id,
+      barcode: sku,
+    },
   });
 }
